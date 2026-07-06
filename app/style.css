@@ -1,0 +1,395 @@
+:root {
+  --forest: #1B4332;
+  --moss: #52796F;
+  --paper: #F7F5F0;
+  --ink: #1B2E1A;
+  --amber: #C98B4A;
+  --leaf-light: #DCE8D8;
+  --error: #A94438;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Inter', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
+.app {
+  width: 100%;
+  max-width: 640px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HERO — en-tête animé : vigne qui se dessine + feuilles qui
+   poussent au chargement, feuilles ambiantes qui flottent en boucle
+   ══════════════════════════════════════════════════════════════ */
+.hero {
+  position: relative;
+  padding: 36px 4px 8px;
+  overflow: hidden;
+}
+
+.hero-glow {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 480px;
+  height: 260px;
+  background: radial-gradient(ellipse at center, rgba(82,121,111,0.22) 0%, rgba(82,121,111,0) 70%);
+  animation: breatheGlow 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes breatheGlow {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;   transform: translateX(-50%) scale(1.08); }
+}
+
+.vine-svg, .ambient-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 128px;
+  overflow: visible;
+}
+
+.ambient-svg { pointer-events: none; }
+
+/* La vigne se dessine de gauche à droite au chargement de la page.
+   Technique : stroke-dasharray définit un trait plus long que le
+   tracé réel, stroke-dashoffset le décale hors champ, puis on anime
+   l'offset vers 0 pour révéler le trait progressivement. */
+.vine-path {
+  fill: none;
+  stroke: var(--moss);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: drawVine 1.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes drawVine {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Feuilles qui poussent le long de la vigne, en cascade, chacune
+   démarrant juste après que le trait les ait atteintes. */
+.vine-leaf {
+  color: var(--forest);
+  opacity: 0;
+  transform-origin: center bottom;
+  animation: leafPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.vine-leaf.vl-1 { animation-delay: 0.35s; }
+.vine-leaf.vl-2 { color: var(--amber); animation-delay: 0.70s; }
+.vine-leaf.vl-3 { animation-delay: 1.05s; }
+.vine-leaf.vl-4 { color: var(--amber); animation-delay: 1.35s; }
+.vine-leaf.vl-5 { animation-delay: 1.60s; }
+
+@keyframes leafPop {
+  0%   { opacity: 0; transform: scale(0) rotate(var(--r, 0deg)); }
+  65%  { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Feuilles ambiantes : dérivent doucement en continu, en arrière-plan,
+   pour donner une impression de vie après l'entrée en scène. */
+.ambient-leaf {
+  color: var(--leaf-light);
+  opacity: 0;
+  animation: ambientFadeIn 1s ease forwards, floatDrift 5s ease-in-out infinite;
+}
+
+.ambient-leaf.af-1 { animation-delay: 1.6s, 2.2s; animation-duration: 1s, 6s; }
+.ambient-leaf.af-2 { animation-delay: 1.8s, 2.4s; animation-duration: 1s, 7s; color: #C9DAC5; }
+.ambient-leaf.af-3 { animation-delay: 2.0s, 2.6s; animation-duration: 1s, 5.5s; }
+.ambient-leaf.af-4 { animation-delay: 2.2s, 2.8s; animation-duration: 1s, 6.5s; color: #C9DAC5; }
+
+@keyframes ambientFadeIn {
+  to { opacity: 0.55; }
+}
+
+@keyframes floatDrift {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-12px) rotate(6deg); }
+}
+
+.hero-text {
+  position: relative;
+  padding-top: 96px;
+}
+
+.hero-text .eyebrow,
+.hero-text h1,
+.hero-text .subtitle {
+  opacity: 0;
+  animation: fadeSlideUp 0.7s ease forwards;
+}
+
+.hero-text .eyebrow  { animation-delay: 1.5s; }
+.hero-text h1        { animation-delay: 1.65s; }
+.hero-text .subtitle { animation-delay: 1.8s; }
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Respect des préférences d'accessibilité : désactive les animations
+   pour les personnes qui ont demandé "reduced motion" au niveau OS */
+@media (prefers-reduced-motion: reduce) {
+  .hero-glow, .vine-path, .vine-leaf, .ambient-leaf,
+  .hero-text .eyebrow, .hero-text h1, .hero-text .subtitle {
+    animation: none !important;
+    opacity: 1 !important;
+    stroke-dashoffset: 0 !important;
+    transform: none !important;
+  }
+}
+
+.eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--moss);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+h1 {
+  font-family: 'Fraunces', serif;
+  font-size: clamp(32px, 6vw, 48px);
+  font-weight: 600;
+  color: var(--forest);
+  line-height: 1.05;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  color: var(--moss);
+  font-size: 16px;
+  margin-bottom: 32px;
+  max-width: 480px;
+}
+
+.dropzone {
+  border: 2px dashed var(--moss);
+  border-radius: 16px;
+  background: white;
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+  position: relative;
+}
+
+.dropzone:hover, .dropzone.dragover {
+  border-color: var(--forest);
+  background: var(--leaf-light);
+}
+
+.dropzone input { display: none; }
+
+.dropzone-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.dropzone-text {
+  font-size: 15px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.dropzone-hint {
+  font-size: 13px;
+  color: var(--moss);
+  margin-top: 4px;
+}
+
+#preview {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 12px;
+  margin-top: 16px;
+  display: none;
+}
+
+.btn {
+  background: var(--forest);
+  color: white;
+  border: none;
+  border-radius: 999px;
+  padding: 14px 28px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  width: 100%;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.btn:hover:not(:disabled) { background: #143728; }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn:disabled { background: #A9B8A6; cursor: not-allowed; }
+
+.result {
+  margin-top: 28px;
+  background: white;
+  border-radius: 16px;
+  padding: 28px;
+  display: none;
+  border: 1px solid #E5E1D8;
+}
+
+.result.visible { display: block; }
+
+.result-label {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--moss);
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.result-name {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--forest);
+  margin-bottom: 16px;
+}
+
+.confidence-row {
+  margin-bottom: 14px;
+}
+
+.confidence-track {
+  height: 8px;
+  background: var(--leaf-light);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.confidence-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--moss), var(--forest));
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+
+.confidence-value {
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+  display: flex;
+  justify-content: space-between;
+}
+
+.status {
+  margin-top: 16px;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  display: none;
+}
+
+.status.error {
+  display: block;
+  background: #FBEAE7;
+  color: var(--error);
+}
+
+.status.loading {
+  display: block;
+  background: var(--leaf-light);
+  color: var(--forest);
+}
+
+.config {
+  margin-top: 24px;
+  font-size: 12px;
+  color: var(--moss);
+  text-align: center;
+}
+
+.config input {
+  border: 1px solid #D8D3C6;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  width: 260px;
+  font-family: 'Inter', sans-serif;
+}
+
+.result-latin {
+  font-style: italic;
+  color: var(--moss);
+  font-size: 14px;
+  margin-bottom: 20px;
+  margin-top: -8px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.info-item {
+  background: var(--leaf-light);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.info-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--moss);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.description-block {
+  background: #FBFAF6;
+  border-left: 3px solid var(--moss);
+  border-radius: 4px;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  margin-bottom: 14px;
+}
+
+.warning-block {
+  background: #FBEAE7;
+  border-left: 3px solid var(--error);
+  border-radius: 4px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--error);
+  font-weight: 500;
+}

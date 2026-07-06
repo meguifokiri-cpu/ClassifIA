@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlantID — Dashboard de monitoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --forest: #1B4332;
+    --moss: #52796F;
+    --paper: #F7F5F0;
+    --ink: #1B2E1A;
+    --amber: #C98B4A;
+    --leaf-light: #DCE8D8;
+    --error: #A94438;
+    --card-border: #E5E1D8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    padding: 32px 20px 60px;
+  }
+
+  .wrap { max-width: 980px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: clamp(26px, 4vw, 36px);
+    font-weight: 600;
+    color: var(--forest);
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #8DA893;
+    display: inline-block;
+  }
+
+  .status-dot.live { background: #3E7C4A; box-shadow: 0 0 0 3px rgba(62,124,74,0.2); }
+  .status-dot.error { background: var(--error); }
+
+  .status-text {
+    font-size: 13px;
+    color: var(--moss);
+  }
+
+  button {
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--forest);
+    background: white;
+    color: var(--forest);
+    border-radius: 999px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button:hover { background: var(--leaf-light); }
+  button.active { background: var(--forest); color: white; }
+
+  .intro {
+    font-size: 14px;
+    color: var(--moss);
+    max-width: 640px;
+    margin: 14px 0 28px;
+    line-height: 1.6;
+  }
+
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: white;
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+
+  .kpi-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--moss);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  .kpi-value {
+    font-family: 'Fraunces', serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: var(--forest);
+  }
+
+  .kpi-unit { font-size: 14px; color: var(--moss); font-weight: 400; margin-left: 4px; }
+
+  .kpi-explain {
+    font-size: 12px;
+    color: #7C8B79;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .panel {
+    background: white;
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px 26px;
+    margin-bottom: 20px;
+  }
+
+  .panel-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--forest);
+    margin-bottom: 4px;
+  }
+
+  .panel-explain {
+    font-size: 13px;
+    color: var(--moss);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .bar-label {
+    width: 130px;
+    font-size: 13px;
+    color: var(--ink);
+    font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 20px;
+    background: var(--leaf-light);
+    border-radius: 999px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--moss), var(--forest));
+    border-radius: 999px;
+    transition: width 0.5s ease;
+  }
+
+  .bar-fill.error-fill {
+    background: linear-gradient(90deg, #D97757, var(--error));
+  }
+
+  .bar-value {
+    width: 36px;
+    text-align: right;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--forest);
+    flex-shrink: 0;
+  }
+
+  .empty-state {
+    font-size: 13px;
+    color: #A0AD9C;
+    font-style: italic;
+    padding: 8px 0;
+  }
+
+  .raw-toggle {
+    font-size: 13px;
+    color: var(--moss);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    margin-top: 8px;
+    display: inline-block;
+  }
+
+  pre.raw {
+    display: none;
+    background: #1B2E1A;
+    color: #DCE8D8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    padding: 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin-top: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+
+  pre.raw.visible { display: block; }
+
+  .legend-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .legend-item {
+    display: flex;
+    gap: 12px;
+  }
+
+  .legend-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--leaf-light);
+    color: var(--forest);
+    padding: 3px 8px;
+    border-radius: 999px;
+    height: fit-content;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .legend-text { font-size: 13px; color: var(--ink); line-height: 1.5; }
+  .legend-text b { color: var(--forest); }
+
+  .error-banner {
+    background: #FBEAE7;
+    color: var(--error);
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .error-banner.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Observabilité</div>
+      <h1>Dashboard PlantID</h1>
+    </div>
+    <div class="controls">
+      <span class="status-dot" id="statusDot"></span>
+      <span class="status-text" id="statusText">En attente...</span>
+      <button id="refreshBtn">Actualiser</button>
+      <button id="autoBtn">Auto-refresh</button>
+    </div>
+  </header>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="kpi-row">
+    <div class="kpi-card">
+      <div class="kpi-label">Classes du modèle</div>
+      <div class="kpi-value" id="kpiClasses">—</div>
+      <div class="kpi-explain">Jauge (Gauge) : vérifie que le modèle chargé correspond bien aux 30 espèces attendues.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Prédictions totales</div>
+      <div class="kpi-value" id="kpiTotal">—</div>
+      <div class="kpi-explain">Compteur (Counter) : somme de toutes les prédictions réussies, toutes espèces confondues.</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Latence moyenne<span class="kpi-unit">s</span></div>
+      <div class="kpi-value" id="kpiLatency">—</div>
+      <div class="kpi-explain">Histogramme : temps moyen de réponse de /predict (somme des durées ÷ nombre d'appels).</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Confiance moyenne<span class="kpi-unit">%</span></div>
+      <div class="kpi-value" id="kpiConfidence">—</div>
+      <div class="kpi-explain">Histogramme : confiance moyenne du modèle sur ses prédictions récentes.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Prédictions par espèce</div>
+    <div id="speciesBars"><div class="empty-state">Aucune prédiction enregistrée pour l'instant — teste le frontend PlantID pour générer des données.</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Erreurs par type</div>
+    <div class="panel-explain">
+      Compteur séparé des échecs, catégorisé par cause (fichier manquant, format invalide, échec de lecture, espèce absente de la base).
+      Un pic sur une catégorie précise oriente directement le diagnostic.
+    </div>
+    <div id="errorBars"><div class="empty-state">Aucune erreur enregistrée — bon signe.</div></div>
+  </div>
+
+  
+    </div>
+    <span class="raw-toggle" id="rawToggle">Voir les données brutes renvoyées par /metrics</span>
+    <pre class="raw" id="rawOutput"></pre>
+  </div>
+
+<script>
+  const API_METRICS_URL = 'http://localhost:5000/metrics';
+
+  const statusDot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  const errorBanner = document.getElementById('errorBanner');
+  const refreshBtn = document.getElementById('refreshBtn');
+  const autoBtn = document.getElementById('autoBtn');
+  const rawToggle = document.getElementById('rawToggle');
+  const rawOutput = document.getElementById('rawOutput');
+
+  let autoRefreshTimer = null;
+
+  rawToggle.addEventListener('click', () => {
+    rawOutput.classList.toggle('visible');
+    rawToggle.textContent = rawOutput.classList.contains('visible')
+      ? 'Masquer les données brutes'
+      : 'Voir les données brutes renvoyées par /metrics';
+  });
+
+  // ── Parseur du format texte Prometheus ─────────────────────────
+  // Chaque ligne utile ressemble à :
+  //   nom_metrique{label="valeur"} 12.0
+  // ou, sans label :
+  //   nom_metrique 12.0
+  // Les lignes commençant par # sont des commentaires (HELP/TYPE) à ignorer.
+  function parseMetrics(text) {
+    const lignes = text.split('\n').filter(l => l.trim() && !l.startsWith('#'));
+    const metriques = [];
+
+    for (const ligne of lignes) {
+      const match = ligne.match(/^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{(.*)\})?\s+([0-9.eE+\-]+|NaN|Inf|-Inf)$/);
+      if (!match) continue;
+
+      const nom = match[1];
+      const labelsStr = match[3] || '';
+      const valeur = parseFloat(match[4]);
+      const labels = {};
+
+      if (labelsStr) {
+        labelsStr.split(',').forEach(paire => {
+          const idx = paire.indexOf('=');
+          if (idx === -1) return;
+          const cle = paire.slice(0, idx).trim();
+          const val = paire.slice(idx + 1).trim().replace(/^"|"$/g, '');
+          labels[cle] = val;
+        });
+      }
+
+      metriques.push({ nom, labels, valeur });
+    }
+    return metriques;
+  }
+
+  function trouver(metriques, nom, labelKey = null, labelVal = null) {
+    return metriques.filter(m => {
+      if (m.nom !== nom) return false;
+      if (labelKey && m.labels[labelKey] !== labelVal) return false;
+      return true;
+    });
+  }
+
+  function renderBars(container, entries, { isError = false } = {}) {
+    if (entries.length === 0) {
+      container.innerHTML = `<div class="empty-state">${isError ? 'Aucune erreur enregistrée — bon signe.' : 'Aucune donnée pour l\'instant.'}</div>`;
+      return;
+    }
+
+    const max = Math.max(...entries.map(e => e.valeur), 1);
+    container.innerHTML = entries.map(e => `
+      <div class="bar-row">
+        <div class="bar-label">${e.label}</div>
+        <div class="bar-track">
+          <div class="bar-fill ${isError ? 'error-fill' : ''}" style="width:${(e.valeur / max * 100).toFixed(1)}%"></div>
+        </div>
+        <div class="bar-value">${e.valeur}</div>
+      </div>
+    `).join('');
+  }
+
+  async function chargerMetriques() {
+    try {
+      const reponse = await fetch(API_METRICS_URL);
+      if (!reponse.ok) throw new Error(`Réponse HTTP ${reponse.status}`);
+      const texte = await reponse.text();
+
+      statusDot.className = 'status-dot live';
+      statusText.textContent = `Connecté — dernière mise à jour ${new Date().toLocaleTimeString('fr-FR')}`;
+      errorBanner.classList.remove('visible');
+      rawOutput.textContent = texte;
+
+      const metriques = parseMetrics(texte);
+
+      // ── KPI : classes du modèle (Gauge) ──────────────────────
+      const classes = trouver(metriques, 'plantid_model_classes');
+      document.getElementById('kpiClasses').textContent = classes.length ? classes[0].valeur : '—';
+
+      // ── KPI : prédictions totales (somme du Counter par espèce) ─
+      const predictionsParEspece = trouver(metriques, 'plantid_predictions_total');
+      const total = predictionsParEspece.reduce((acc, m) => acc + m.valeur, 0);
+      document.getElementById('kpiTotal').textContent = total;
+
+      // ── KPI : latence moyenne (Histogram sum / count) ────────
+      const latSum = trouver(metriques, 'plantid_prediction_latency_seconds_sum');
+      const latCount = trouver(metriques, 'plantid_prediction_latency_seconds_count');
+      const latenceMoy = (latCount.length && latCount[0].valeur > 0)
+        ? (latSum[0].valeur / latCount[0].valeur).toFixed(3)
+        : '—';
+      document.getElementById('kpiLatency').textContent = latenceMoy;
+
+      // ── KPI : confiance moyenne (Histogram sum / count) ──────
+      const confSum = trouver(metriques, 'plantid_prediction_confidence_percent_sum');
+      const confCount = trouver(metriques, 'plantid_prediction_confidence_percent_count');
+      const confMoy = (confCount.length && confCount[0].valeur > 0)
+        ? (confSum[0].valeur / confCount[0].valeur).toFixed(1)
+        : '—';
+      document.getElementById('kpiConfidence').textContent = confMoy;
+
+      // ── Barres : prédictions par espèce ───────────────────────
+      const especeEntries = predictionsParEspece
+        .map(m => ({ label: m.labels.espece || '?', valeur: m.valeur }))
+        .sort((a, b) => b.valeur - a.valeur);
+      renderBars(document.getElementById('speciesBars'), especeEntries);
+
+      // ── Barres : erreurs par type ──────────────────────────────
+      const erreurEntries = trouver(metriques, 'plantid_prediction_errors_total')
+        .map(m => ({ label: m.labels.type_erreur || '?', valeur: m.valeur }))
+        .sort((a, b) => b.valeur - a.valeur);
+      renderBars(document.getElementById('errorBars'), erreurEntries, { isError: true });
+
+    } catch (err) {
+      statusDot.className = 'status-dot error';
+      statusText.textContent = 'Déconnecté';
+      errorBanner.classList.add('visible');
+      errorBanner.textContent = `Impossible de joindre ${API_METRICS_URL} — vérifie que ton API Flask tourne bien (${err.message}).`;
+    }
+  }
+
+  refreshBtn.addEventListener('click', chargerMetriques);
+
+  autoBtn.addEventListener('click', () => {
+    if (autoRefreshTimer) {
+      clearInterval(autoRefreshTimer);
+      autoRefreshTimer = null;
+      autoBtn.classList.remove('active');
+    } else {
+      chargerMetriques();
+      autoRefreshTimer = setInterval(chargerMetriques, 5000);
+      autoBtn.classList.add('active');
+    }
+  });
+
+  // Premier chargement au lancement de la page
+  chargerMetriques();
+</script>
+
+</body>
+</html>

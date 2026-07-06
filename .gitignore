@@ -1,0 +1,20 @@
+@"
+venv311/
+venv/
+.venv/
+env/
+.env
+*.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+data/raw/
+data/dataset_prepare/
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+*.log
+"@ | Out-File -FilePath .gitignore -Encoding ascii
