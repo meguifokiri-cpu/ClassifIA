@@ -1,11 +1,13 @@
 venv/
 __pycache__/
 *.pyc
+.git/
 .env
 data/raw/
 data/dataset_prepare/
 model/modele_final.h5
 logs/
 arbo.txt
-model/ *.png
 docs/
+README.md
+report.md

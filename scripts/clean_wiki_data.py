@@ -86,7 +86,7 @@ def main():
         # Article manquant sur Wikipedia
         if missing:
             rejetes.append((i, titre, 'Article manquant'))
-            print(f"rejeté — article manquant")
+            print(f"        rejeté — article manquant")
             continue
 
         # Extrait vide

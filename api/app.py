@@ -25,6 +25,11 @@ def metrics():
     return Response(contenu, mimetype=content_type)
 
 
+@app.route('/health')
+def health():
+    return {"status": "ok"}, 200
+
+
 # ── Lancement du serveur ──────────────────────────────────────
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

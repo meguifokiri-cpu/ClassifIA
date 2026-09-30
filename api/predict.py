@@ -15,14 +15,12 @@ Flux complet :
 """
 
 import io
-import time
 import numpy as np
 from PIL import Image
 
 from flask import Blueprint, jsonify, request
 from db import get_db
 from model_loader import predict_species
-from monitoring import PREDICTION_COUNT, PREDICTION_ERRORS, PREDICTION_LATENCY, PREDICTION_CONFIDENCE
 
 predict_bp = Blueprint('predict', __name__)
 
@@ -47,33 +45,36 @@ def prepare_image(file_bytes: bytes) -> np.ndarray:
     if img.mode != 'RGB':
         img = img.convert('RGB')
 
-    # Redimensionnement à 224×224 — même taille que l'entraînement
-    img = img.resize(IMG_SIZE)
+    # Redimensionnement à 224×224 avec interpolation NEAREST
+    # → aligné sur l'interpolation utilisée par flow_from_directory()
+    #   pendant l'entraînement (Keras utilise 'nearest' par défaut)
+    img = img.resize(IMG_SIZE, Image.NEAREST)
 
     return np.array(img)   # shape (224, 224, 3), valeurs [0, 255]
-
 
 # ══════════════════════════════════════════════════════════════════════
 # POST /predict
 # Reçoit une image, retourne la fiche botanique de l'espèce prédite
 # ══════════════════════════════════════════════════════════════════════
+
+# Les seuils restent en dehors de la fonction (constantes globales) — ça c'est correct
+CONFIDENCE_THRESHOLD   = 0.55
+ENTROPY_THRESHOLD      = 0.15
+MARGIN_THRESHOLD       = 0.70
+MAHALANOBIS_THRESHOLD  = 52.0
+
 @predict_bp.route('/predict', methods=['POST'])
 def predict():
-    debut = time.time()
 
-    # ── Vérification de la présence du fichier ────────────────────────
     if 'image' not in request.files:
-        PREDICTION_ERRORS.labels(type_erreur='fichier_manquant').inc()
         return jsonify({'error': "Champ 'image' manquant dans la requête"}), 400
 
     fichier = request.files['image']
 
     if fichier.filename == '':
-        PREDICTION_ERRORS.labels(type_erreur='fichier_manquant').inc()
         return jsonify({'error': 'Aucun fichier sélectionné'}), 400
 
     if not allowed_file(fichier.filename):
-        PREDICTION_ERRORS.labels(type_erreur='format_invalide').inc()
         return jsonify({
             'error': f"Format non supporté. Formats acceptés : {ALLOWED_EXTENSIONS}"
         }), 400
@@ -82,11 +83,26 @@ def predict():
         file_bytes = fichier.read()
         img_array  = prepare_image(file_bytes)
     except Exception as e:
-        PREDICTION_ERRORS.labels(type_erreur='lecture_image_echouee').inc()
         return jsonify({'error': f"Impossible de lire l'image : {str(e)}"}), 500
 
     # ── Prédiction via le modèle ──────────────────────────────────────
-    nom_dossier, confiance = predict_species(img_array)
+    nom_dossier, confiance, diagnostics = predict_species(img_array)
+
+    # ── Filtre OOD Couche 1+2 : rejet multi-signal ─────────────────────
+    est_rejete = (
+        confiance < CONFIDENCE_THRESHOLD or
+        diagnostics["entropie"] > ENTROPY_THRESHOLD or
+        diagnostics["ecart_top1_top2"] < MARGIN_THRESHOLD or
+        diagnostics["distance_mahalanobis"] > MAHALANOBIS_THRESHOLD
+    )
+
+    if est_rejete:
+        return jsonify({
+            'error': "Cette image ne semble pas correspondre à une plante.",
+            'suggestion_ignoree': nom_dossier,
+            'confiance': round(confiance * 100, 2),
+            'diagnostics': diagnostics
+        }), 422
 
     # ── Récupération de la fiche en base de données ───────────────────
     conn = get_db()
@@ -102,22 +118,14 @@ def predict():
     ''', (nom_dossier,)).fetchone()
     conn.close()
 
-    # ── Enregistrement des métriques (dans tous les cas, trouvé ou non) ─
-    PREDICTION_LATENCY.observe(time.time() - debut)
-    PREDICTION_CONFIDENCE.observe(round(confiance * 100, 2))
-
     if row is None:
-        PREDICTION_ERRORS.labels(type_erreur='espece_absente_bdd').inc()
         return jsonify({
             'error'      : f"Espèce '{nom_dossier}' non trouvée en base de données",
             'nom_dossier': nom_dossier,
             'confiance'  : round(confiance * 100, 2)
         }), 404
 
-    PREDICTION_COUNT.labels(espece=nom_dossier).inc()
-
-    # ── Construction de la réponse JSON ──────────────────────────────
     resultat = dict(row)
-    resultat['confiance'] = round(confiance * 100, 2)  # ex: 91.34 (%)
+    resultat['confiance'] = round(confiance * 100, 2)
 
     return jsonify(resultat), 200

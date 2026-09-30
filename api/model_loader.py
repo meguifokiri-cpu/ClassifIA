@@ -13,69 +13,83 @@ Pourquoi charger une seule fois ?
 
 import os
 import json
+import pickle
 import numpy as np
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model, Model
 from monitoring import MODEL_CLASSES_LOADED
 
-# ── Chemins ───────────────────────────────────────────────────────────
 BASE_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MODEL_PATH   = os.path.join(BASE_DIR, 'model', 'modele_best.h5')
 INDICES_PATH = os.path.join(BASE_DIR, 'model', 'class_indices.json')
 
-# ── Chargement au démarrage ───────────────────────────────────────────
-# Ces deux variables sont initialisées une fois et réutilisées
-# par chaque appel à predict.py sans rechargement.
-
 if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(
-        f"Modèle introuvable : {MODEL_PATH}\n"
-        "→ Exécutez d'abord scripts/train_model.py"
-    )
+    raise FileNotFoundError(f"Modèle introuvable : {MODEL_PATH}")
 
 if not os.path.exists(INDICES_PATH):
-    raise FileNotFoundError(
-        f"Indices introuvables : {INDICES_PATH}\n"
-        "→ Exécutez d'abord scripts/train_model.py"
-    )
+    raise FileNotFoundError(f"Indices introuvables : {INDICES_PATH}")
 
 print("  Chargement du modèle IA...")
-model = load_model(MODEL_PATH)
+model = load_model(MODEL_PATH)          # ← 'model' est défini ICI
 
 with open(INDICES_PATH, encoding='utf-8') as f:
-    # {"0": "banana", "1": "mango", ...}
     idx_to_class = json.load(f)
 
 print(f"  Modèle chargé — {len(idx_to_class)} classes disponibles")
 MODEL_CLASSES_LOADED.set(len(idx_to_class))
 
+# ── Extracteur de features pour Mahalanobis ────────────────────
+# DOIT être placé APRÈS "model = load_model(...)", jamais avant
+feature_extractor = Model(inputs=model.input, outputs=model.get_layer('global_average_pooling2d').output)
+with open(os.path.join(BASE_DIR, 'model', 'ood_stats.pkl'), 'rb') as f:
+    ood_stats = pickle.load(f)
+
+
+def distance_mahalanobis_min(img_batch: np.ndarray) -> float:
+    """
+    Calcule la distance de Mahalanobis entre l'embedding de l'image
+    et le cluster de classe connu le plus proche.
+    Une distance élevée = l'image "ressemble" statistiquement peu
+    à tout ce que le modèle a appris, même si le softmax est confiant.
+    """
+    embedding = feature_extractor.predict(img_batch, verbose=0)[0]  # (128,)
+    cov_inv = ood_stats["cov_inv"]
+
+    distances = []
+    for classe, moyenne in ood_stats["moyennes"].items():
+        diff = embedding - moyenne
+        d = np.sqrt(diff @ cov_inv @ diff.T)
+        distances.append(d)
+
+    return float(min(distances))
+
+
 
 # ── Fonction de prédiction ────────────────────────────────────────────
 IMG_SIZE = (224, 224)
 
-def predict_species(img_array: np.ndarray) -> tuple[str, float]:
-    """
-    Reçoit une image sous forme de tableau numpy (224, 224, 3),
-    retourne le nom_dossier prédit et le score de confiance.
-
-    Paramètre :
-        img_array : tableau numpy shape (224, 224, 3), valeurs [0, 255]
-
-    Retour :
-        (nom_dossier, confiance)
-        Ex: ("mango", 0.9134)
-    """
-    # Normalisation identique à celle du générateur d'entraînement
+def predict_species(img_array: np.ndarray) -> tuple[str, float, dict]:
     img_array = img_array.astype('float32') / 255.0
-
-    # Ajout de la dimension batch : (224, 224, 3) → (1, 224, 224, 3)
     img_batch = np.expand_dims(img_array, axis=0)
 
-    # Prédiction : retourne un tableau de probabilités pour chaque classe
-    predictions = model.predict(img_batch, verbose=0)  # shape (1, 30)
+    predictions = model.predict(img_batch, verbose=0)[0]
 
-    # Récupération de l'indice avec la probabilité la plus haute
-    indice     = int(np.argmax(predictions[0]))
-    confiance  = float(predictions[0][indice])
+    indice = int(np.argmax(predictions))
+    confiance = float(predictions[indice])
     nom_dossier = idx_to_class.get(str(indice), "inconnu")
 
-    return nom_dossier, confiance
+    eps = 1e-9
+    entropie = -np.sum(predictions * np.log(predictions + eps))
+    entropie_normalisee = float(entropie / np.log(len(predictions)))
+
+    top2_idx = np.argsort(predictions)[-2:][::-1]
+    ecart_top1_top2 = float(predictions[top2_idx[0]] - predictions[top2_idx[1]])
+
+    distance_mahalanobis = distance_mahalanobis_min(img_batch)
+
+    diagnostics = {
+        "entropie": round(entropie_normalisee, 4),
+        "ecart_top1_top2": round(ecart_top1_top2, 4),
+        "distance_mahalanobis": round(distance_mahalanobis, 2),
+    }
+
+    return nom_dossier, confiance, diagnostics

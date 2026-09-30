@@ -75,6 +75,7 @@ def build_generators():
 
     return train_gen, val_gen, test_gen
 
+
 def afficher_rapport(train_gen, val_gen, test_gen) -> None:
     """Affiche un résumé lisible des générateurs."""
     print(f"\n{'─'*55}")
@@ -87,7 +88,7 @@ def afficher_rapport(train_gen, val_gen, test_gen) -> None:
     print(f"  Batch size   : {BATCH_SIZE}")
     print(f"  Image size   : {IMG_SIZE}")
     print(f"{'─'*55}")
-    print(f"\n  Correspondance classes indices :")
+    print(f"\n  Correspondance classes → indices :")
     for nom, idx in sorted(train_gen.class_indices.items(), key=lambda x: x[1]):
         print(f"    {idx:>2}  {nom}")
     print()

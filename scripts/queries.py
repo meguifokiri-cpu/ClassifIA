@@ -1,7 +1,8 @@
 import os
 
-TRAIN_DIR = r"C:\Users\user\Desktop\classif-ia\data\dataset_prepare\train"
-RAW_DIR   = r"C:\Users\user\Desktop\classif-ia\data\raw"
+BASE_DIR  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # ajuste le nombre de dirname selon la profondeur réelle de queries.py
+TRAIN_DIR = os.path.join(BASE_DIR, 'data', 'dataset_prepare', 'train')
+RAW_DIR   = os.path.join(BASE_DIR, 'data', 'raw')
 
 # ancien nom → nouveau nom (celui dans la base)
 CORRECTIONS = {
