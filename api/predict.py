@@ -104,6 +104,18 @@ def predict():
             'diagnostics': diagnostics
         }), 422
 
+    # ── Classe "autre_espece_vegetale" : plante réelle, hors référentiel ──
+    if nom_dossier == 'autre_espece_vegetale':
+        message = ("Il s'agit bien d'une plante, mais elle ne fait pas partie "
+                   "des 30 espèces du référentiel.")
+        return jsonify({
+            'espece_reconnue'      : False,
+            'nom_commun'           : 'Plante non répertoriée',
+            'description_wikipedia': message,
+            'confiance'            : round(confiance * 100, 2),
+            'diagnostics'          : diagnostics
+        }), 200
+
     # ── Récupération de la fiche en base de données ───────────────────
     conn = get_db()
     row  = conn.execute('''

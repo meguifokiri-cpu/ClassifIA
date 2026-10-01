@@ -66,8 +66,8 @@ submitBtn.addEventListener('click', async () => {
   const formData = new FormData();
   formData.append('image', selectedFile);
 
-  try {
-    const response = await fetch(apiUrlInput.value, {
+    try {
+    const response = await fetch('/predict', {
       method: 'POST',
       body: formData
     });
