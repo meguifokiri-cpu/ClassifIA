@@ -1,0 +1,59 @@
+name: CI/CD Classifia
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: Tests automatises
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construire l'image Docker
+        run: docker build -t classifia-api .
+
+      - name: Demarrer l'API et attendre qu'elle reponde
+        run: |
+          docker run -d --name classifia-test -p 5000:5000 classifia-api
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:5000/health > /dev/null; then
+              echo "API prete apres $((i*5))s"; exit 0
+            fi
+            sleep 5
+          done
+          echo "L'API n'a pas demarre"; docker logs classifia-test; exit 1
+
+      - name: Installer les outils de test
+        run: pip install pytest requests
+
+      - name: Lancer les tests
+        run: pytest tests/ -v
+
+      - name: Journaux du conteneur en cas d'echec
+        if: failure()
+        run: docker logs classifia-test
+
+  deploiement:
+    name: Deploiement sur AWS
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mise a jour du serveur
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/ClassifIA
+            git pull origin master
+            docker compose up -d --build
+            docker image prune -f
+
+      - name: Verifier que l'application repond
+        run: |
+          sleep 45
+          curl -sf http://${{ secrets.EC2_HOST }}/health || exit 1
